@@ -1,0 +1,32 @@
+name: Build Minecraft Plugin
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths-ignore:
+    - '.github/workflows/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v2
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        java-package: 'jdk'
+
+    - name: Build with Maven
+      run: mvn clean install
+
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: plugin
+        path: target/*.jar
