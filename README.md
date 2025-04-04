@@ -16,7 +16,8 @@ ChatJPは、Minecraftサーバーでのチャットコミュニケーション�
 
 1. [リリースページ](https://github.com/yamak493/ChatJP/releases)から最新の`ChatJP.jar`をダウンロード
 2. サーバーの`plugins`フォルダに`ChatJP.jar`を配置
-3. サーバーを再起動または`/reload`コマンドを実行
+3. DiscordSRVの`DisabledPluginHooks`を`ChatJP`に設定。
+4. サーバーを再起動または`/reload confirm`コマンドを実行
 
 ### 通常チャット
 
@@ -24,8 +25,7 @@ ChatJPは、Minecraftサーバーでのチャットコミュニケーション�
 
 例：
 ```
-プレイヤー: konnichiwa
-チャット表示: konnichiwa (こんにちわ)
+<プレイヤー名> konnichiwa (こんにちわ)
 ```
 
 ### グループチャット
@@ -34,7 +34,7 @@ ChatJPは、Minecraftサーバーでのチャットコミュニケーション�
 
 #### コマンド
 
-- `/group [グループID]` - 指定したIDのグループに参加
+- `/group [グループID]` - 指定したIDのグループに参加 ※グループIDは半角英数字
 - `/group` - グループから退出
 
 #### 使用例
