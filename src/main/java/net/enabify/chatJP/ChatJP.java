@@ -124,6 +124,12 @@ public final class ChatJP extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
 
+
+        // プレイヤーの発言ではない場合は、そのまま無視する
+        if (!(event.getPlayer() instanceof org.bukkit.entity.Player)) {
+            return;
+        }
+
         String message = event.getMessage();
 
         // コマンド実行の場合は、そのまま無視する
@@ -131,14 +137,22 @@ public final class ChatJP extends JavaPlugin implements Listener {
             return;
         }
 
-        // プレイヤーの発言ではない場合は、そのまま無視する
-        if (!(event.getPlayer() instanceof org.bukkit.entity.Player)) {
-            return;
-        }
-
         // いったん、グループチャット機能（グループに所属していた場合）
         UUID senderUUID = event.getPlayer().getUniqueId();
         Integer senderGroup = getPlayerGroup(senderUUID);
+
+        // 「!」でグループではなく、全体でチャット
+        if ( message.startsWith("!") ) {
+
+            // メッセージの頭の「!」を削除
+            message = message.substring(1); // 先頭の1文字を削除
+            // メッセージを日本語化
+            String result = translate(message);
+            event.setMessage(result);
+
+            return;
+        }
+
 
         if (senderGroup == null) {
             //グループには参加していなかった場合（通常チャット）

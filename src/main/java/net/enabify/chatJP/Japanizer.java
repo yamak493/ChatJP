@@ -22,6 +22,10 @@ public class Japanizer {
      */
     public static String japanize(String org) {
 
+        if (!isNeedToJapanize(org)) {
+            return org;
+        }
+
         JapanizeType type = JapanizeType.GOOGLE_IME;
 
         // URL削除
@@ -37,8 +41,6 @@ public class Japanizer {
         // IME変換
         if ( type == JapanizeType.GOOGLE_IME ) {
             japanized = IMEConverter.convByGoogleIME(japanized);
-//        } else if ( type == JapanizeType.SOCIAL_IME ) {
-//            japanized = IMEConverter.convBySocialIME(japanized);
         }
 
         // キーワードのアンロック
