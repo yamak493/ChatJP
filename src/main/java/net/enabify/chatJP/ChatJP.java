@@ -208,17 +208,23 @@ public final class ChatJP extends JavaPlugin implements Listener {
         // NGワードをマスクする（ローマ字）
         message = maskNGWord(message, ngwords);
 
-        // Japanizeで、日本語化する
-        String japanize = Japanizer.japanize(message);
-        if ( japanize.length() > 0 ) {
-            // NGワードをマスクする（日本語）
-            japanize = maskNGWord(japanize, ngwords);
+        if (Japanizer.isNeedToJapanize(message)) {
+            // Japanizeで、日本語化する
+            String japanize = Japanizer.japanize(message);
+            if ( japanize.length() > 0 ) {
+                // NGワードをマスクする（日本語）
+                japanize = maskNGWord(japanize, ngwords);
+            }
+
+            String result =   ChatColor.WHITE + message
+                    + ChatColor.GOLD + " (" + japanize + ")";
+
+            return result;
+        } else {
+            // 日本語化しない場合は、そのまま返す
+            return ChatColor.WHITE + message;
         }
 
-        String result =   ChatColor.WHITE + message
-                + ChatColor.GOLD + " (" + japanize + ")";
-
-        return result;
     }
 
     public Integer getPlayerGroup(UUID uuid) {

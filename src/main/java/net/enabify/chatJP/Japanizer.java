@@ -22,10 +22,6 @@ public class Japanizer {
      */
     public static String japanize(String org) {
 
-        if (!isNeedToJapanize(org)) {
-            return org;
-        }
-
         JapanizeType type = JapanizeType.GOOGLE_IME;
 
         // URL削除
@@ -57,7 +53,7 @@ public class Japanizer {
      * @param org
      * @return
      */
-    private static boolean isNeedToJapanize(String org) {
+    public static boolean isNeedToJapanize(String org) {
         return ( org.getBytes().length == org.length()
                 && !org.matches("[ \\uFF61-\\uFF9F]+") );
     }
