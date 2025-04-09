@@ -114,6 +114,9 @@ public final class ChatJP extends JavaPlugin implements Listener {
         // コンソールに表示
         getLogger().info("[" + sender.getName() + " -> " + target.getName() + "] " + result);
 
+        // 送信者にもログが残るようにする
+        sender.sendMessage(ChatColor.WHITE + "<" + sender.getName() + "> " + result);
+
         return true;
     }
 
