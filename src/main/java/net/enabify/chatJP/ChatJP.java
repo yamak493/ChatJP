@@ -109,13 +109,13 @@ public final class ChatJP extends JavaPlugin implements Listener {
         //日本語化
         String result = translate(message);
 
-        target.sendMessage(ChatColor.WHITE + "[個別チャット]<" + sender.getName() + "> " + result);
+        target.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
 
         // コンソールに表示
         getLogger().info("[" + sender.getName() + " -> " + target.getName() + "] " + result);
 
         // 送信者にもログが残るようにする
-        sender.sendMessage(ChatColor.WHITE + "[個別チャット]<" + sender.getName() + "> " + result);
+        sender.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
 
         return true;
     }
