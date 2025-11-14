@@ -24,7 +24,7 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
     private File dataFile;
     private FileConfiguration dataConfig;
-    private final Map<UUID, Integer> playerGroups = new HashMap<>();
+    private final Map<UUID, String> playerGroups = new HashMap<>();
 
     // NGワードの設定
     String[] ngwords = {
@@ -75,18 +75,23 @@ public final class ChatJP extends JavaPlugin implements Listener {
                 return true;
             }
 
-
-            try {
-                int groupId = Integer.parseInt(args[0]);
-                playerGroups.put(senderUUID, groupId);
-                dataConfig.set(senderUUID.toString(), groupId);
-                saveDataFile();
-                sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループ " + groupId + " に参加しました！");
-            } catch (NumberFormatException e) {
-                sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループ番号は半角で入力してください。");
+            String groupId = args[0];
+            
+            // グループIDのバリデーション：ローマ字と数字のみ、「global」は除外
+            if (!groupId.matches("^[a-zA-Z0-9]+$")) {
+                sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループIDはローマ字と数字のみで構成してください。");
+                return true;
+            }
+            
+            if (groupId.equalsIgnoreCase("global")) {
+                sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループID「global」は使用できません。");
+                return true;
             }
 
-
+            playerGroups.put(senderUUID, groupId);
+            dataConfig.set(senderUUID.toString(), groupId);
+            saveDataFile();
+            sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループ " + groupId + " に参加しました！");
 
             return true;
         }
@@ -142,7 +147,7 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
         // いったん、グループチャット機能（グループに所属していた場合）
         UUID senderUUID = event.getPlayer().getUniqueId();
-        Integer senderGroup = getPlayerGroup(senderUUID);
+        String senderGroup = getPlayerGroup(senderUUID);
 
         // 「!」でグループではなく、全体でチャット
         if ( message.startsWith("!") ) {
@@ -171,11 +176,11 @@ public final class ChatJP extends JavaPlugin implements Listener {
             // メッセージを日本語化
             String result = translate(message);
 
-            String msg = ChatColor.GOLD + "[グループ" + senderGroup + "] "+
+            String msg = ChatColor.GOLD + "[グループ | " + senderGroup + "] "+
                     ChatColor.WHITE + "<" + event.getPlayer().getName() + "> " + result;
 
             for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                Integer targetGroup = getPlayerGroup(onlinePlayer.getUniqueId());
+                String targetGroup = getPlayerGroup(onlinePlayer.getUniqueId());
                 if (senderGroup.equals(targetGroup)) {
                     onlinePlayer.sendMessage(msg);
                 }
@@ -230,7 +235,7 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
     }
 
-    public Integer getPlayerGroup(UUID uuid) {
+    public String getPlayerGroup(UUID uuid) {
         return playerGroups.get(uuid);
     }
 
@@ -261,7 +266,7 @@ public final class ChatJP extends JavaPlugin implements Listener {
         for (String key : dataConfig.getKeys(false)) {
             try {
                 UUID uuid = UUID.fromString(key);
-                int group = dataConfig.getInt(key);
+                String group = dataConfig.getString(key);
                 playerGroups.put(uuid, group);
             } catch (IllegalArgumentException ignored) {}
         }
