@@ -96,11 +96,36 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
         if (command.getName().equalsIgnoreCase("group")) {
             if (args.length < 1) {
+                UUID playerUUID = senderUUID;
+                String playerGroup = getPlayerGroup(playerUUID);
 
                 playerGroups.remove(senderUUID);
                 dataConfig.set(senderUUID.toString(), null);
+                saveDataFile();
 
                 sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループから退出しました。");
+
+                // グループに他のプレイヤーがいるかチェック
+                if (playerGroup != null && !playerGroup.isEmpty() && !playerGroup.equals("global")) {
+                    int playerCountInGroup = 0;
+                    for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                        if (onlinePlayer.getUniqueId().equals(playerUUID)) {
+                            continue; // 退出するプレイヤーは除外
+                        }
+                        String otherPlayerGroup = getPlayerGroup(onlinePlayer.getUniqueId());
+                        if (playerGroup.equals(otherPlayerGroup)) {
+                            playerCountInGroup++;
+                        }
+                    }
+                    
+                    // グループに誰もいなくなった場合、チャンネルの購読を中止
+                    if (playerCountInGroup == 0) {
+                        if (ablyManager != null) {
+                            ablyManager.unsubscribeFromChannel(playerGroup);
+                            getLogger().info("グループ「" + playerGroup + "」にプレイヤーがいなくなったため、チャンネルの購読を中止しました。");
+                        }
+                    }
+                }
 
                 return true;
             }
