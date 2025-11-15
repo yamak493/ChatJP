@@ -12,5 +12,5 @@ commands:
     aliases: [w, msg]
   group:
     description: グループチャットに参加します
-    usage: /group <番号>
+    usage: /group <グループID>
     aliases: [g]

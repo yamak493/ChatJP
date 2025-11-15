@@ -25,6 +25,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
     private File dataFile;
     private FileConfiguration dataConfig;
     private final Map<UUID, String> playerGroups = new HashMap<>();
+    private AblyManager ablyManager;
+
+    // Ably APIキー（設定ファイルから読み込み）
+    private String ablyApiKey;
 
     // NGワードの設定
     String[] ngwords = {
@@ -41,9 +45,24 @@ public final class ChatJP extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         // Plugin startup logic
+        loadConfigFile();
         loadDataFile();
         loadGroups();
 
+        // APIキーが設定されている場合のみAblyマネージャーを初期化
+        if (ablyApiKey != null && !ablyApiKey.isEmpty()) {
+            ablyManager = new AblyManager(this, ablyApiKey);
+            ablyManager.connect();
+
+            // 既存のグループチャンネルも購読
+            for (String groupId : new HashSet<>(playerGroups.values())) {
+                if (groupId != null && !groupId.isEmpty() && !groupId.equals("global")) {
+                    ablyManager.subscribeToGroup(groupId);
+                }
+            }
+        } else {
+            getLogger().warning("Ably API キーが設定されていません。Ablyは無効になります。");
+        }
 
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("ChatJP plugin enabled!");
@@ -53,6 +72,11 @@ public final class ChatJP extends JavaPlugin implements Listener {
     public void onDisable() {
         // Plugin shutdown logic
         saveDataFile();
+
+        // Ablyから切断
+        if (ablyManager != null) {
+            ablyManager.disconnect();
+        }
 
         getLogger().info("ChatJP plugin disabled!");
     }
@@ -91,6 +115,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
             playerGroups.put(senderUUID, groupId);
             dataConfig.set(senderUUID.toString(), groupId);
             saveDataFile();
+            
+            // 新しいグループチャンネルを購読
+            ablyManager.subscribeToGroup(groupId);
+            
             sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループ " + groupId + " に参加しました！");
 
             return true;
@@ -158,6 +186,12 @@ public final class ChatJP extends JavaPlugin implements Listener {
             String result = translate(message);
             event.setMessage(result);
 
+            // Ablyに全体チャットとして送信
+            if (ablyManager != null) {
+                String plainResult = ChatColor.stripColor(result);
+                ablyManager.sendMessage("global", event.getPlayer().getName(), plainResult);
+            }
+
             return;
         }
 
@@ -168,6 +202,12 @@ public final class ChatJP extends JavaPlugin implements Listener {
             // メッセージを日本語化
             String result = translate(message);
             event.setMessage(result);
+
+            // Ablyに全体チャットとして送信
+            if (ablyManager != null) {
+                String plainResult = ChatColor.stripColor(result);
+                ablyManager.sendMessage("global", event.getPlayer().getName(), plainResult);
+            }
 
         } else {
             // グループに参加していた場合（グループチャット）
@@ -188,6 +228,14 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
             // コンソールに表示
             getLogger().info(msg);
+
+            // Ablyにグループチャットとして送信
+            if (ablyManager != null) {
+                String plainResult = ChatColor.stripColor(result);
+                ablyManager.sendMessage(senderGroup, event.getPlayer().getName(), plainResult);
+
+                //getLogger().info("Ablyにグループチャットメッセージを送信しました: グループ " + senderGroup + ", プレイヤー " + event.getPlayer().getName() + ", メッセージ " + plainResult);
+            }
         }
     }
 
@@ -269,6 +317,35 @@ public final class ChatJP extends JavaPlugin implements Listener {
                 String group = dataConfig.getString(key);
                 playerGroups.put(uuid, group);
             } catch (IllegalArgumentException ignored) {}
+        }
+    }
+
+    private void loadConfigFile() {
+        File configFile = new File(getDataFolder(), "config.yml");
+        if (!configFile.exists()) {
+            configFile.getParentFile().mkdirs();
+            try {
+                if (configFile.createNewFile()) {
+                    getLogger().info("config.yml ファイルを新規作成しました。");
+                    
+                    // デフォルト設定を作成
+                    FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+                    config.set("ably.api-key", "YOUR_ABLY_API_KEY_HERE");
+                    config.save(configFile);
+                    
+                    getLogger().warning("config.yml に Ably API キーを設定してください！");
+                }
+            } catch (IOException e) {
+                getLogger().severe("config.yml ファイルの作成に失敗しました: " + e.getMessage());
+            }
+        }
+        
+        // 設定ファイルから APIキーを読み込み
+        FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+        ablyApiKey = config.getString("ably.api-key", "");
+        
+        if (ablyApiKey.isEmpty() || ablyApiKey.equals("YOUR_ABLY_API_KEY_HERE")) {
+            ablyApiKey = null;
         }
     }
 
