@@ -77,7 +77,11 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
         // Ablyから切断
         if (ablyManager != null) {
-            ablyManager.disconnect();
+            try {
+                ablyManager.disconnect();
+            } catch (Exception e) {
+                getLogger().warning("Ably切断中にエラーが発生しました: " + e.getMessage());
+            }
         }
 
         getLogger().info("ChatJP plugin disabled!");

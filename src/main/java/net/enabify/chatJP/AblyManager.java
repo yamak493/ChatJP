@@ -38,7 +38,7 @@ public class AblyManager {
         }
         
         // バックグラウンドスレッドで接続を実行
-        new Thread(() -> {
+        Thread connectionThread = new Thread(() -> {
             try {
                 ClientOptions options = new ClientOptions();
                 options.key = apiKey;
@@ -53,7 +53,9 @@ public class AblyManager {
                 logger.severe("Ablyの接続に失敗しました: " + e.getMessage());
                 e.printStackTrace();
             }
-        }).start();
+        });
+        connectionThread.setDaemon(true);
+        connectionThread.start();
     }
 
     /**
@@ -61,8 +63,27 @@ public class AblyManager {
      */
     public void disconnect() {
         if (ably != null) {
-            ably.close();
-            logger.info("Ablyから切断しました");
+            try {
+                // 接続状態を確認してから切断
+                if (ably.connection != null) {
+                    ably.connection.close();
+                }
+                ably.close();
+                logger.info("Ablyから切断しました");
+            } catch (Exception e) {
+                logger.warning("Ablyの切断中にエラーが発生しました: " + e.getMessage());
+                e.printStackTrace();
+            }
+            
+            // スレッドが完全に終了するのを待つ
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                logger.warning("Ablyシャットダウン待機中に割り込まれました");
+            }
+            
+            ably = null;
+            subscribedChannels.clear();
         }
     }
 
