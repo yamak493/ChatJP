@@ -8,6 +8,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Arrays;
@@ -151,6 +153,57 @@ public final class ChatJP extends JavaPlugin implements Listener {
         sender.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
 
         return true;
+    }
+
+    /**
+     * プレイヤーがサーバーに参加したときに呼び出されるメソッド
+     * @param event
+     */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        String playerGroup = getPlayerGroup(playerUUID);
+        
+        // プレイヤーがグループに参加している場合、そのグループチャンネルを購読
+        if (playerGroup != null && !playerGroup.isEmpty() && !playerGroup.equals("global")) {
+            if (ablyManager != null) {
+                ablyManager.subscribeToGroup(playerGroup);
+                getLogger().info("プレイヤー " + event.getPlayer().getName() + " がグループ「" + playerGroup + "」に参加しているため、チャンネルを購読しました。");
+            }
+        }
+    }
+
+    /**
+     * プレイヤーがサーバーから退出したときに呼び出されるメソッド
+     * @param event
+     */
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        String playerGroup = getPlayerGroup(playerUUID);
+        
+        // プレイヤーがグループに参加している場合、そのグループに他のプレイヤーがいるかチェック
+        if (playerGroup != null && !playerGroup.isEmpty() && !playerGroup.equals("global")) {
+            // グループに参加中の他のプレイヤー数をカウント
+            int playerCountInGroup = 0;
+            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                if (onlinePlayer.getUniqueId().equals(playerUUID)) {
+                    continue; // 退出するプレイヤーは除外
+                }
+                String otherPlayerGroup = getPlayerGroup(onlinePlayer.getUniqueId());
+                if (playerGroup.equals(otherPlayerGroup)) {
+                    playerCountInGroup++;
+                }
+            }
+            
+            // グループに誰もいなくなった場合、チャンネルの購読を中止
+            if (playerCountInGroup == 0) {
+                if (ablyManager != null) {
+                    ablyManager.unsubscribeFromChannel(playerGroup);
+                    getLogger().info("グループ「" + playerGroup + "」にプレイヤーがいなくなったため、チャンネルの購読を中止しました。");
+                }
+            }
+        }
     }
 
     /**

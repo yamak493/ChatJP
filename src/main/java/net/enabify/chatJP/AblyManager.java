@@ -10,6 +10,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.json.JSONObject;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Logger;
 
 public class AblyManager {
@@ -17,6 +19,7 @@ public class AblyManager {
     private final Logger logger;
     private AblyRealtime ably;
     private final String apiKey;
+    private final Set<String> subscribedChannels = new HashSet<>();
 
     public AblyManager(ChatJP plugin, String apiKey) {
         this.plugin = plugin;
@@ -73,6 +76,12 @@ public class AblyManager {
             return;
         }
 
+        // 既に購読済みの場合はスキップ
+        if (subscribedChannels.contains(channelId)) {
+            logger.fine("チャンネル「" + channelId + "」は既に購読済みです");
+            return;
+        }
+
         try {
             Channel channel = ably.channels.get(channelId);
             channel.subscribe(message -> {
@@ -84,6 +93,7 @@ public class AblyManager {
                     e.printStackTrace();
                 }
             });
+            subscribedChannels.add(channelId);
             logger.info("チャンネル「" + channelId + "」を購読しました");
         } catch (AblyException e) {
             logger.severe("チャンネル「" + channelId + "」の購読に失敗しました: " + e.getMessage());
@@ -99,6 +109,22 @@ public class AblyManager {
         if (groupId != null && !groupId.isEmpty() && !groupId.equals("global")) {
             subscribeToChannel(groupId);
         }
+    }
+
+    /**
+     * 指定されたチャンネルの購読を中止
+     * @param channelId チャンネルID
+     */
+    public void unsubscribeFromChannel(String channelId) {
+        if (ably == null) {
+            logger.warning("Ablyが初期化されていません");
+            return;
+        }
+
+        Channel channel = ably.channels.get(channelId);
+        channel.unsubscribe();
+        subscribedChannels.remove(channelId);
+        logger.info("チャンネル「" + channelId + "」の購読を中止しました");
     }
 
     /**
