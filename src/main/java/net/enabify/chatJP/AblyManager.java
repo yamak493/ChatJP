@@ -97,14 +97,17 @@ public class AblyManager {
             return;
         }
 
+        // チャンネルIDにnamespaceを付与
+        String namespacedChannelId = addNamespace(channelId);
+
         // 既に購読済みの場合はスキップ
-        if (subscribedChannels.contains(channelId)) {
-            logger.fine("チャンネル「" + channelId + "」は既に購読済みです");
+        if (subscribedChannels.contains(namespacedChannelId)) {
+            logger.fine("チャンネル「" + namespacedChannelId + "」は既に購読済みです");
             return;
         }
 
         try {
-            Channel channel = ably.channels.get(channelId);
+            Channel channel = ably.channels.get(namespacedChannelId);
             channel.subscribe(message -> {
                 // メッセージ処理をバックグラウンドスレッドで実行
                 try {
@@ -114,10 +117,10 @@ public class AblyManager {
                     e.printStackTrace();
                 }
             });
-            subscribedChannels.add(channelId);
-            logger.info("チャンネル「" + channelId + "」を購読しました");
+            subscribedChannels.add(namespacedChannelId);
+            logger.info("チャンネル「" + namespacedChannelId + "」を購読しました");
         } catch (AblyException e) {
-            logger.severe("チャンネル「" + channelId + "」の購読に失敗しました: " + e.getMessage());
+            logger.severe("チャンネル「" + namespacedChannelId + "」の購読に失敗しました: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -142,10 +145,13 @@ public class AblyManager {
             return;
         }
 
-        Channel channel = ably.channels.get(channelId);
+        // チャンネルIDにnamespaceを付与
+        String namespacedChannelId = addNamespace(channelId);
+        
+        Channel channel = ably.channels.get(namespacedChannelId);
         channel.unsubscribe();
-        subscribedChannels.remove(channelId);
-        logger.info("チャンネル「" + channelId + "」の購読を中止しました");
+        subscribedChannels.remove(namespacedChannelId);
+        logger.info("チャンネル「" + namespacedChannelId + "」の購読を中止しました");
     }
 
     /**
@@ -253,8 +259,11 @@ public class AblyManager {
             return;
         }
 
+        // チャンネルIDにnamespaceを付与
+        String namespacedChannelId = addNamespace(channelId);
+
         try {
-            Channel channel = ably.channels.get(channelId);
+            Channel channel = ably.channels.get(namespacedChannelId);
             
             // JSON形式でメッセージを作成
             JSONObject json = new JSONObject();
@@ -266,7 +275,7 @@ public class AblyManager {
             channel.publish("chat", json.toString());
 
             //logger.fine("Ablyにメッセージを送信しました: " + json.toString());
-            //logger.info("Ablyにメッセージを送信しました: チャンネル " + channelId + ", プレイヤー " + playerName + ", メッセージ " + message);
+            //logger.info("Ablyにメッセージを送信しました: チャンネル " + namespacedChannelId + ", プレイヤー " + playerName + ", メッセージ " + message);
             
         } catch (AblyException e) {
             logger.severe("Ablyへのメッセージ送信に失敗しました: " + e.getMessage());
@@ -290,5 +299,21 @@ public class AblyManager {
      */
     public boolean isConnected() {
         return ably != null && ably.connection.state == io.ably.lib.realtime.ConnectionState.connected;
+    }
+
+    /**
+     * チャンネルIDにMinecraft namespaceを付与
+     * @param channelId チャンネルID
+     * @return namespaceが付与されたチャンネルID
+     */
+    private String addNamespace(String channelId) {
+        if (channelId == null || channelId.isEmpty()) {
+            return channelId;
+        }
+        if (channelId.contains(":")) {
+            // すでにnamespaceが含まれている場合はそのまま返す
+            return channelId;
+        }
+        return "minecraft:" + channelId;
     }
 }
