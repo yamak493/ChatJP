@@ -342,9 +342,62 @@ public final class ChatJP extends JavaPlugin implements Listener {
         return message;
     }
 
+    /**
+     * 特定の数字コード（52、08、58、082）をランダムな挨拶に変換する
+     * @param message 元のメッセージ
+     * @return 変換されたメッセージ、または変換しない場合はnull
+     */
+    private String translateGreetingCode(String message) {
+        Random random = new Random();
+        
+        if (message.equals("52")) {
+            String[] greetings = {
+                "こんにちは", "こんにちは！", "こんにちは^^", "こんにちはー", "こんにちは～",
+                "こんです", "こんです！", "こんです^^", "こんですー", "こんです～",
+                "こんちゃ！", "こんちゃ～"
+            };
+            return greetings[random.nextInt(greetings.length)];
+        } else if (message.equals("08")) {
+            String[] greetings = {
+                "おはよう", "おはよう！", "おはよう^^", "おはよう～", "おはようー",
+                "おはようございます", "おはようございます！", "おはようございます^^",
+                "おはようございます～", "おはようございますー",
+                "おはです", "おはです！", "おはです^^", "おはです～", "おはですー"
+            };
+            return greetings[random.nextInt(greetings.length)];
+        } else if (message.equals("58")) {
+            String[] greetings = {
+                "こんばんは", "こんばんは！", "こんばんは^^", "こんばんは～", "こんばんはー",
+                "こんです", "こんです！", "こんです^^", "こんですー", "こんです～"
+            };
+            return greetings[random.nextInt(greetings.length)];
+        } else if (message.equals("082")) {
+            String[] greetings = {
+                "新規さんよろしくです！", "新規さんよろしくです^^", "新規さんよろしくです～",
+                "新規さん初めまして！", "新規さん初めまして", "新規さん初めまして～",
+                "お初さんこんにちは！", "お初さんこんにちは^^", "お初さんこんにちは～",
+                "お初さんよろしくお願いします", "お初さんよろしくお願いします！", "お初さんよろしくお願いします～",
+                "初見さんいらっしゃい！", "初見さんいらっしゃい", "初見さんいらっしゃい～",
+                "よろしくね！", "よろしくね^^", "よろしくね～",
+                "よろしくお願いします", "よろしくお願いします", "よろしくお願いします～",
+                "はじめまして！", "はじめまして^^", "はじめまして～",
+                "これからよろしくお願いします", "これからよろしくお願いします！",
+            };
+            return greetings[random.nextInt(greetings.length)];
+        }
+        
+        return null;
+    }
+
     public String translate(String message) {
         // NGワードをマスクする（ローマ字）
         message = maskNGWord(message, ngwords);
+
+        // 特定の数字コードをランダムな挨拶に変換
+        String greetingTranslation = translateGreetingCode(message);
+        if (greetingTranslation != null) {
+            return ChatColor.WHITE + greetingTranslation + ChatColor.GRAY + " (" + message + ")";
+        }
 
         if (Japanizer.isNeedToJapanize(message)) {
             // Japanizeで、日本語化する
