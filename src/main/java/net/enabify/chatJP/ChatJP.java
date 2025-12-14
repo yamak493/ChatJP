@@ -354,12 +354,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
             String[] greetings = {
                 "こんにちは", "こんにちは！", "こんにちは^^", "こんにちはー", "こんにちは～",
                 "こんです", "こんです！", "こんです^^", "こんですー", "こんです～",
-                "こんちゃ！", "こんちゃ～"
             };
             return greetings[random.nextInt(greetings.length)];
         } else if (message.equals("08")) {
             String[] greetings = {
-                "おはよう", "おはよう！", "おはよう^^", "おはよう～", "おはようー",
                 "おはようございます", "おはようございます！", "おはようございます^^",
                 "おはようございます～", "おはようございますー",
                 "おはです", "おはです！", "おはです^^", "おはです～", "おはですー"
@@ -407,8 +405,8 @@ public final class ChatJP extends JavaPlugin implements Listener {
                 japanize = maskNGWord(japanize, ngwords);
             }
 
-            String result =   ChatColor.WHITE + message
-                    + ChatColor.GOLD + " (" + japanize + ")";
+            String result = ChatColor.WHITE + japanize
+                    + ChatColor.GRAY + " (" + message + ")";
 
             return result;
         } else {
