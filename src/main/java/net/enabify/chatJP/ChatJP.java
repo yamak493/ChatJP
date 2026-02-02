@@ -173,13 +173,16 @@ public final class ChatJP extends JavaPlugin implements Listener {
         //日本語化
         String result = translate(message);
 
-        target.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
+        String senderNameWithStatus = getPlayerNameWithStatus((Player) sender);
+        String targetNameWithStatus = getPlayerNameWithStatus(target);
+
+        target.sendMessage(ChatColor.WHITE + "[" + senderNameWithStatus + " -> "+targetNameWithStatus+"] " + result);
 
         // コンソールに表示
-        getLogger().info("[" + sender.getName() + " -> " + target.getName() + "] " + result);
+        getLogger().info("[" + senderNameWithStatus + " -> " + targetNameWithStatus + "] " + result);
 
         // 送信者にもログが残るようにする
-        sender.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
+        sender.sendMessage(ChatColor.WHITE + "[" + senderNameWithStatus + " -> "+targetNameWithStatus+"] " + result);
 
         return true;
     }
@@ -258,6 +261,9 @@ public final class ChatJP extends JavaPlugin implements Listener {
         // いったん、グループチャット機能（グループに所属していた場合）
         UUID senderUUID = event.getPlayer().getUniqueId();
         String senderGroup = getPlayerGroup(senderUUID);
+        
+        // プレイヤー名に新規さん表示を追加
+        String playerNameWithStatus = getPlayerNameWithStatus(event.getPlayer());
 
         // 「!」でグループではなく、全体でチャット
         if ( message.startsWith("!") ) {
@@ -267,6 +273,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
             // メッセージを日本語化
             String result = translate(message);
             event.setMessage(result);
+            
+            // プレイヤー名を設定（新規さん表示付き）
+            String msg = "<" + playerNameWithStatus + "> " + result;
+            event.setFormat(msg);
 
             // Ablyに全体チャットとして送信
             if (ablyManager != null) {
@@ -284,6 +294,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
             // メッセージを日本語化
             String result = translate(message);
             event.setMessage(result);
+            
+            // プレイヤー名を設定（新規さん表示付き）
+            String msg = "<" + playerNameWithStatus + "> " + result;
+            event.setFormat(msg);
 
             // Ablyに全体チャットとして送信
             if (ablyManager != null) {
@@ -299,7 +313,7 @@ public final class ChatJP extends JavaPlugin implements Listener {
             String result = translate(message);
 
             String msg = ChatColor.GOLD + "[グループ | " + senderGroup + "] "+
-                    ChatColor.WHITE + "<" + event.getPlayer().getName() + "> " + result;
+                    ChatColor.WHITE + "<" + playerNameWithStatus + "> " + result;
 
             for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                 String targetGroup = getPlayerGroup(onlinePlayer.getUniqueId());
@@ -418,6 +432,43 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
     public String getPlayerGroup(UUID uuid) {
         return playerGroups.get(uuid);
+    }
+
+    /**
+     * プレイヤーがサーバーで過ごした時間を取得（ティック単位）
+     * @param player プレイヤーオブジェクト
+     * @return サーバーでの遊技時間（時間単位）
+     */
+    private long getPlayerPlayTime(Player player) {
+        // Minecraftの統計情報からプレイ時間を取得
+        // "minecraft:custom:minecraft.play_time" は、プレイ時間をティック単位で保存
+        int playTimeTicks = player.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE);
+        
+        // ティック -> 時間に変換（1時間 = 72000ティック）
+        long hours = playTimeTicks / 72000;
+        return hours;
+    }
+
+    /**
+     * プレイヤーの遊技時間に基づいて、名前に表示を追加する
+     * @param player プレイヤーオブジェクト
+     * @return ステータス付きのプレイヤー名
+     */
+    private String getPlayerNameWithStatus(Player player) {
+        long playTimeHours = getPlayerPlayTime(player);
+        String playerName = player.getName();
+
+        // 10時間以下の場合、「*」を追加
+        if (playTimeHours <= 10) {
+            playerName += ChatColor.GREEN + "*";
+            
+            // 2時間以下の場合、「新規さん」も追加
+            if (playTimeHours <= 2) {
+                playerName += ChatColor.GREEN + "新規さん" + ChatColor.RESET;
+            }
+        }
+
+        return playerName;
     }
 
     private void loadDataFile() {
