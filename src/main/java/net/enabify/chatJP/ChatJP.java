@@ -11,6 +11,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.Statistic;
 
 import java.util.Arrays;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -28,6 +29,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
     private FileConfiguration dataConfig;
     private final Map<UUID, String> playerGroups = new HashMap<>();
     private AblyManager ablyManager;
+
+    private static final long TICKS_PER_HOUR = 20L * 60L * 60L;
+    private static final long SIX_HOURS_TICKS = 6L * TICKS_PER_HOUR;
+    private static final long TWO_HOURS_TICKS = 2L * TICKS_PER_HOUR;
 
     // Ably APIキー（設定ファイルから読み込み）
     private String ablyApiKey;
@@ -173,13 +178,16 @@ public final class ChatJP extends JavaPlugin implements Listener {
         //日本語化
         String result = translate(message);
 
-        target.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
+        String decoratedSenderName = buildChatDisplayName((Player) sender);
+        String decoratedTargetName = buildChatDisplayName((Player) target);
+
+        target.sendMessage(ChatColor.WHITE + "[" + decoratedSenderName + " -> " + decoratedTargetName + "] " + result);
 
         // コンソールに表示
         getLogger().info("[" + sender.getName() + " -> " + target.getName() + "] " + result);
 
         // 送信者にもログが残るようにする
-        sender.sendMessage(ChatColor.WHITE + "[" + sender.getName() + " -> "+target.getName()+"] " + result);
+        sender.sendMessage(ChatColor.WHITE + "[" + decoratedSenderName + " -> " + decoratedTargetName + "] " + result);
 
         return true;
     }
@@ -266,7 +274,8 @@ public final class ChatJP extends JavaPlugin implements Listener {
             message = message.substring(1); // 先頭の1文字を削除
             // メッセージを日本語化
             String result = translate(message);
-            event.setMessage(result);
+            String buildBeginnerMark = buildBeginnerMark(event.getPlayer());
+            event.setMessage(result + buildBeginnerMark);
 
             // Ablyに全体チャットとして送信
             if (ablyManager != null) {
@@ -283,7 +292,8 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
             // メッセージを日本語化
             String result = translate(message);
-            event.setMessage(result);
+            String buildBeginnerMark = buildBeginnerMark(event.getPlayer());
+            event.setMessage(result + buildBeginnerMark);
 
             // Ablyに全体チャットとして送信
             if (ablyManager != null) {
@@ -298,8 +308,8 @@ public final class ChatJP extends JavaPlugin implements Listener {
             // メッセージを日本語化
             String result = translate(message);
 
-            String msg = ChatColor.GOLD + "[グループ | " + senderGroup + "] "+
-                    ChatColor.WHITE + "<" + event.getPlayer().getName() + "> " + result;
+                    String msg = ChatColor.GOLD + "[グループ | " + senderGroup + "] " +
+                        ChatColor.WHITE + "<" + buildChatDisplayName(event.getPlayer()) + "> " + result;
 
             for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                 String targetGroup = getPlayerGroup(onlinePlayer.getUniqueId());
@@ -414,6 +424,40 @@ public final class ChatJP extends JavaPlugin implements Listener {
             return ChatColor.WHITE + message;
         }
 
+    }
+
+    private String buildChatDisplayName(Player player) {
+        String baseName = player.getDisplayName();
+        long playTicks = player.getStatistic(Statistic.PLAY_ONE_MINUTE);
+
+        if (playTicks <= SIX_HOURS_TICKS) {
+            StringBuilder name = new StringBuilder(baseName);
+            name.append(ChatColor.GREEN).append("*");
+            if (playTicks <= TWO_HOURS_TICKS) {
+                name.append(ChatColor.GREEN).append("新規さん");
+            }
+            name.append(ChatColor.RESET);
+            return name.toString();
+        }
+
+        return baseName;
+    }
+
+    private String buildBeginnerMark(Player player) {
+        String BeginnerMark = " ";
+        long playTicks = player.getStatistic(Statistic.PLAY_ONE_MINUTE);
+
+        if (playTicks <= SIX_HOURS_TICKS) {
+            StringBuilder name = new StringBuilder(BeginnerMark);
+            name.append(ChatColor.GREEN).append("*");
+            if (playTicks <= TWO_HOURS_TICKS) {
+                name.append(ChatColor.GREEN).append("新規さん");
+            }
+            name.append(ChatColor.RESET);
+            return name.toString();
+        }
+
+        return BeginnerMark;
     }
 
     public String getPlayerGroup(UUID uuid) {
