@@ -8,8 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.Statistic;
 
@@ -28,14 +26,10 @@ public final class ChatJP extends JavaPlugin implements Listener {
     private File dataFile;
     private FileConfiguration dataConfig;
     private final Map<UUID, String> playerGroups = new HashMap<>();
-    private AblyManager ablyManager;
 
     private static final long TICKS_PER_HOUR = 20L * 60L * 60L;
     private static final long SIX_HOURS_TICKS = 24L * TICKS_PER_HOUR; // 一時的に24時間に延長
     private static final long TWO_HOURS_TICKS = 2L * TICKS_PER_HOUR;
-
-    // Ably APIキー（設定ファイルから読み込み）
-    private String ablyApiKey;
 
     // NGワードの設定
     String[] ngwords = {
@@ -52,24 +46,8 @@ public final class ChatJP extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         // Plugin startup logic
-        loadConfigFile();
         loadDataFile();
         loadGroups();
-
-        // APIキーが設定されている場合のみAblyマネージャーを初期化
-        if (ablyApiKey != null && !ablyApiKey.isEmpty()) {
-            ablyManager = new AblyManager(this, ablyApiKey);
-            ablyManager.connect();
-
-            // 既存のグループチャンネルも購読
-            for (String groupId : new HashSet<>(playerGroups.values())) {
-                if (groupId != null && !groupId.isEmpty() && !groupId.equals("global")) {
-                    ablyManager.subscribeToGroup(groupId);
-                }
-            }
-        } else {
-            getLogger().warning("Ably API キーが設定されていません。Ablyは無効になります。");
-        }
 
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("ChatJP plugin enabled!");
@@ -79,15 +57,6 @@ public final class ChatJP extends JavaPlugin implements Listener {
     public void onDisable() {
         // Plugin shutdown logic
         saveDataFile();
-
-        // Ablyから切断
-        if (ablyManager != null) {
-            try {
-                ablyManager.disconnect();
-            } catch (Exception e) {
-                getLogger().warning("Ably切断中にエラーが発生しました: " + e.getMessage());
-            }
-        }
 
         getLogger().info("ChatJP plugin disabled!");
     }
@@ -101,36 +70,11 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
         if (command.getName().equalsIgnoreCase("group")) {
             if (args.length < 1) {
-                UUID playerUUID = senderUUID;
-                String playerGroup = getPlayerGroup(playerUUID);
-
                 playerGroups.remove(senderUUID);
                 dataConfig.set(senderUUID.toString(), null);
                 saveDataFile();
 
                 sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループから退出しました。");
-
-                // グループに他のプレイヤーがいるかチェック
-                if (playerGroup != null && !playerGroup.isEmpty() && !playerGroup.equals("global")) {
-                    int playerCountInGroup = 0;
-                    for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                        if (onlinePlayer.getUniqueId().equals(playerUUID)) {
-                            continue; // 退出するプレイヤーは除外
-                        }
-                        String otherPlayerGroup = getPlayerGroup(onlinePlayer.getUniqueId());
-                        if (playerGroup.equals(otherPlayerGroup)) {
-                            playerCountInGroup++;
-                        }
-                    }
-                    
-                    // グループに誰もいなくなった場合、チャンネルの購読を中止
-                    if (playerCountInGroup == 0) {
-                        if (ablyManager != null) {
-                            ablyManager.unsubscribeFromChannel(playerGroup);
-                            getLogger().info("グループ「" + playerGroup + "」にプレイヤーがいなくなったため、チャンネルの購読を中止しました。");
-                        }
-                    }
-                }
 
                 return true;
             }
@@ -151,10 +95,7 @@ public final class ChatJP extends JavaPlugin implements Listener {
             playerGroups.put(senderUUID, groupId);
             dataConfig.set(senderUUID.toString(), groupId);
             saveDataFile();
-            
-            // 新しいグループチャンネルを購読
-            ablyManager.subscribeToGroup(groupId);
-            
+
             sender.sendMessage(ChatColor.GOLD+"[グループチャット] "+ChatColor.WHITE+"グループ " + groupId + " に参加しました！");
 
             return true;
@@ -193,57 +134,6 @@ public final class ChatJP extends JavaPlugin implements Listener {
     }
 
     /**
-     * プレイヤーがサーバーに参加したときに呼び出されるメソッド
-     * @param event
-     */
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        UUID playerUUID = event.getPlayer().getUniqueId();
-        String playerGroup = getPlayerGroup(playerUUID);
-        
-        // プレイヤーがグループに参加している場合、そのグループチャンネルを購読
-        if (playerGroup != null && !playerGroup.isEmpty() && !playerGroup.equals("global")) {
-            if (ablyManager != null) {
-                ablyManager.subscribeToGroup(playerGroup);
-                getLogger().info("プレイヤー " + event.getPlayer().getName() + " がグループ「" + playerGroup + "」に参加しているため、チャンネルを購読しました。");
-            }
-        }
-    }
-
-    /**
-     * プレイヤーがサーバーから退出したときに呼び出されるメソッド
-     * @param event
-     */
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        UUID playerUUID = event.getPlayer().getUniqueId();
-        String playerGroup = getPlayerGroup(playerUUID);
-        
-        // プレイヤーがグループに参加している場合、そのグループに他のプレイヤーがいるかチェック
-        if (playerGroup != null && !playerGroup.isEmpty() && !playerGroup.equals("global")) {
-            // グループに参加中の他のプレイヤー数をカウント
-            int playerCountInGroup = 0;
-            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-                if (onlinePlayer.getUniqueId().equals(playerUUID)) {
-                    continue; // 退出するプレイヤーは除外
-                }
-                String otherPlayerGroup = getPlayerGroup(onlinePlayer.getUniqueId());
-                if (playerGroup.equals(otherPlayerGroup)) {
-                    playerCountInGroup++;
-                }
-            }
-            
-            // グループに誰もいなくなった場合、チャンネルの購読を中止
-            if (playerCountInGroup == 0) {
-                if (ablyManager != null) {
-                    ablyManager.unsubscribeFromChannel(playerGroup);
-                    getLogger().info("グループ「" + playerGroup + "」にプレイヤーがいなくなったため、チャンネルの購読を中止しました。");
-                }
-            }
-        }
-    }
-
-    /**
      * プレイヤーがチャット発言した時に呼び出されるメソッド
      * @param event
      */
@@ -277,12 +167,6 @@ public final class ChatJP extends JavaPlugin implements Listener {
             String buildBeginnerMark = buildBeginnerMark(event.getPlayer());
             event.setMessage(result + buildBeginnerMark);
 
-            // Ablyに全体チャットとして送信
-            if (ablyManager != null) {
-                String plainResult = ChatColor.stripColor(result);
-                ablyManager.sendMessage("global", event.getPlayer().getName(), plainResult);
-            }
-
             return;
         }
 
@@ -294,12 +178,6 @@ public final class ChatJP extends JavaPlugin implements Listener {
             String result = translate(message);
             String buildBeginnerMark = buildBeginnerMark(event.getPlayer());
             event.setMessage(result + buildBeginnerMark);
-
-            // Ablyに全体チャットとして送信
-            if (ablyManager != null) {
-                String plainResult = ChatColor.stripColor(result);
-                ablyManager.sendMessage("global", event.getPlayer().getName(), plainResult);
-            }
 
         } else {
             // グループに参加していた場合（グループチャット）
@@ -320,14 +198,6 @@ public final class ChatJP extends JavaPlugin implements Listener {
 
             // コンソールに表示
             getLogger().info(msg);
-
-            // Ablyにグループチャットとして送信
-            if (ablyManager != null) {
-                String plainResult = ChatColor.stripColor(result);
-                ablyManager.sendMessage(senderGroup, event.getPlayer().getName(), plainResult);
-
-                //getLogger().info("Ablyにグループチャットメッセージを送信しました: グループ " + senderGroup + ", プレイヤー " + event.getPlayer().getName() + ", メッセージ " + plainResult);
-            }
         }
     }
 
@@ -494,35 +364,6 @@ public final class ChatJP extends JavaPlugin implements Listener {
                 String group = dataConfig.getString(key);
                 playerGroups.put(uuid, group);
             } catch (IllegalArgumentException ignored) {}
-        }
-    }
-
-    private void loadConfigFile() {
-        File configFile = new File(getDataFolder(), "config.yml");
-        if (!configFile.exists()) {
-            configFile.getParentFile().mkdirs();
-            try {
-                if (configFile.createNewFile()) {
-                    getLogger().info("config.yml ファイルを新規作成しました。");
-                    
-                    // デフォルト設定を作成
-                    FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-                    config.set("ably.api-key", "YOUR_ABLY_API_KEY_HERE");
-                    config.save(configFile);
-                    
-                    getLogger().warning("config.yml に Ably API キーを設定してください！");
-                }
-            } catch (IOException e) {
-                getLogger().severe("config.yml ファイルの作成に失敗しました: " + e.getMessage());
-            }
-        }
-        
-        // 設定ファイルから APIキーを読み込み
-        FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-        ablyApiKey = config.getString("ably.api-key", "");
-        
-        if (ablyApiKey.isEmpty() || ablyApiKey.equals("YOUR_ABLY_API_KEY_HERE")) {
-            ablyApiKey = null;
         }
     }
 
